@@ -68,6 +68,25 @@ void nodeTimeAdjustedCallback(int32_t offset) {
     Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
 }
 
+void showTime(); // 
+Task taskShowTime(TASK_SECOND*1, TASK_FOREVER, &showTime);
+
+void showTime() {
+  // update the LCD with the time
+  int x = random(0, 320);
+  int y = random(0, 240);
+  int r = random(20, 80);
+  lcd.fillCircle(x, y, r+5, TFT_BLACK);
+  lcd.fillCircle(x, y, r, TFT_BLUE);
+  lcd.setTextColor(TFT_WHITE);
+  long meshTime = mesh.getNodeTime();
+  int seconds = meshTime/1000/1000;
+  lcd.drawNumber(seconds, x, y);
+  lcd.drawNumber((meshTime/1000)-(seconds*1000), x, y+10);
+}
+
+
+
 boolean loadRole(String defaultRole) {
   role = defaultRole;
 
@@ -170,19 +189,13 @@ void setup() {
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
-
-  // if you want your node to accept OTA firmware, simply include this line
-  // with whatever role you want your hardware to be. For instance, a
-  // mesh network may have a thermometer, rain detector, and bridge. Each of
-  // those may require different firmware, so different roles are preferrable.
-  //
-  // MAKE SURE YOUR UPLOADED OTA FIRMWARE INCLUDES OTA SUPPORT OR YOU WILL LOSE
-  // THE ABILITY TO UPLOAD MORE FIRMWARE OVER OTA. YOU ALSO WANT TO MAKE SURE
-  // THE ROLES ARE CORRECT
   mesh.initOTAReceive(role);
 
-  userScheduler.addTask( taskSendMessage );
+  userScheduler.addTask(taskSendMessage);
+  userScheduler.addTask(taskShowTime);
   taskSendMessage.enable();
+  taskShowTime.enable();
+
 }
 
 void rebootEspWithReason(String reason) {
