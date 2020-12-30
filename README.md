@@ -5,7 +5,7 @@ Working title!
 A simple wireless network based on ESP32s and IL9341 TFT touchscreens, for building a spatially distributed robot drum kit.
 
 
-# What it does
+## What it does
 
 Large gallery room. A snare in one corner, a bass drum in another, hi hat in the third and cymbal in the fourth.
 As the band play, you create the mix you want by positioning yourself in between the instruments and turning your head.
@@ -22,10 +22,10 @@ The sequencer will set a style (a "patch" maybe) which could be something like "
 
 Run workshops around building instruments, changing them in real time, while a sequence plods along. This could be code driven where we change the programming of an instrument and upload a new version, or more physical, where we move the instrument to hit different things (with different things). In both cases, the network continues and the instrument just rejoins the mesh when it feels ready.
 
-# Design
+## Design
 
 
-## Instruments:
+### Instruments:
 
 Instruments are standalone machines with a simple interface. They will almost always have a latency as the physical mechanism works. This means that while they can be instructed in real time (ie using direct input) the different latencies of different instruments will make it hard to play in real time.
 
@@ -47,7 +47,7 @@ Instruments will report these three things to the sequencer.
 Newly joined instruments will start executing instructions when they've been synchronised with the mesh time.
 
 
-## Sequencer:
+### Sequencer:
 
 The sequencer will send instructions with absolute times, but only as far ahead as it needs, and based on the current time.
 The sequencer will use 1 (stroke duration) to decide how far it needs to look ahead.

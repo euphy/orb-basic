@@ -12,6 +12,7 @@
 #include "SPI.h"
 #include <Preferences.h>
 #include <TFT_eSPI.h> // Hardware-specific library
+#include <ArduinoJson.h>
 
 #include "firmware-build-name.h"
 
@@ -40,9 +41,7 @@ static int screenHeight = 240;
 
 // User stub
 void sendMessage() ; // Prototype so PlatformIO doesn't complain
-
 Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage );
-
 void sendMessage() {
   String msg = "CALL OUT GOURANGA! from node ";
   msg += role;
@@ -64,27 +63,97 @@ void changedConnectionCallback() {
   Serial.printf("Changed connections\n");
 }
 
+void describeSelf();
+Task taskDescribeSelf(TASK_SECOND*2, TASK_FOREVER, &describeSelf);
+void describeSelf() {
+  DynamicJsonDocument doc(2048);
+  doc["name"] = "machine name";
+  doc["id"] = mesh.getNodeId();
+  doc["role"] = role;
+  doc["stroke-duration"] = 100;
+  doc["strike-duration"] = 10;
+  doc["reset-duration"] = 55;
+  serializeJsonPretty(doc, Serial);
+  String msg;
+  serializeJson(doc, msg);
+  mesh.sendBroadcast("no, don't");
+  Serial.println("Hi!");
+  std::list<uint32_t> nodes = mesh.getNodeList();
+  std::list<uint32_t>::iterator it;
+  Serial.print("Connected nodes: ");
+  for (it=nodes.begin(); it!=nodes.end(); it++) {
+    Serial.print(*it);
+    Serial.print(" ");
+  }
+  Serial.println(".");
+
+  showNodeId();
+  showNodeRole();  
+  showConnectedNodes();
+}
+
 void nodeTimeAdjustedCallback(int32_t offset) {
     Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
 }
 
 void showTime(); // 
-Task taskShowTime(TASK_SECOND*1, TASK_FOREVER, &showTime);
-
+Task taskShowTime(TASK_SECOND/8, TASK_FOREVER, &showTime);
 void showTime() {
   // update the LCD with the time
-  int x = random(0, 320);
-  int y = random(0, 240);
-  int r = random(20, 80);
-  lcd.fillCircle(x, y, r+5, TFT_BLACK);
-  lcd.fillCircle(x, y, r, TFT_BLUE);
+  lcd.fillRect(0, 0, 320, 56, TFT_DARKGREY);
   lcd.setTextColor(TFT_WHITE);
   long meshTime = mesh.getNodeTime();
-  int seconds = meshTime/1000/1000;
-  lcd.drawNumber(seconds, x, y);
-  lcd.drawNumber((meshTime/1000)-(seconds*1000), x, y+10);
+  lcd.setTextSize(3);
+  lcd.setTextDatum(BL_DATUM);
+  lcd.drawString("T:", 10, 40);
+  lcd.setTextDatum(BR_DATUM);
+  lcd.drawNumber(meshTime, 300, 40);
+
 }
 
+void showNodeId() {
+  // update the LCD with the time
+  lcd.fillRect(0, 60, 320, 56, TFT_DARKGREY);
+  lcd.setTextColor(TFT_WHITE);
+  lcd.setTextSize(3);
+  lcd.setTextDatum(BL_DATUM);
+  lcd.drawString("ID:", 10, 100);
+  lcd.setTextDatum(BR_DATUM);
+  lcd.drawNumber(mesh.getNodeId(), 300, 100);
+}
+
+void showNodeRole() {
+  // update the LCD with the time
+  lcd.fillRect(0, 120, 320, 56, TFT_DARKGREY);
+  lcd.setTextColor(TFT_WHITE);
+  lcd.setTextSize(3);
+  lcd.setTextDatum(BL_DATUM);
+  lcd.drawString("Role:", 10, 160);
+  lcd.setTextDatum(BR_DATUM);
+  lcd.drawString(role, 300, 160);
+}
+
+void showConnectedNodes() {
+  
+  lcd.fillRect(0, 180, 320, 56, TFT_DARKGREY);
+  lcd.setTextColor(TFT_WHITE);
+  lcd.setTextSize(3);
+  lcd.setTextDatum(BL_DATUM);
+  lcd.drawString("Nodes:", 10, 220);
+  lcd.setTextDatum(BR_DATUM);
+  lcd.setTextSize(1);
+  
+  
+  std::list<uint32_t> nodes = mesh.getNodeList();
+  std::list<uint32_t>::iterator it;
+  int yPos = 190;
+  int xPos = 300;
+  for (it=nodes.begin(); it!=nodes.end(); it++) {
+    lcd.drawNumber(*it, xPos, yPos);
+    yPos+=8;
+  }
+  lcd.setTextSize(3);
+}
 
 
 boolean loadRole(String defaultRole) {
@@ -193,8 +262,10 @@ void setup() {
 
   userScheduler.addTask(taskSendMessage);
   userScheduler.addTask(taskShowTime);
+  userScheduler.addTask(taskDescribeSelf);
   taskSendMessage.enable();
   taskShowTime.enable();
+  taskDescribeSelf.enable();
 
 }
 
@@ -239,6 +310,7 @@ void lcd_initLCD()
   lcd.setTextDatum(TL_DATUM);
   lcd_drawSplashScreen();
   delay(1000);
+  lcd.fillScreen(TFT_BLACK);
 }
 
 void loop() {
