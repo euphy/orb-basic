@@ -39,6 +39,9 @@ int sdChipSelectPin = 25;
 static int screenWidth = 320;
 static int screenHeight = 240;
 
+uint32_t tickColourOdd = TFT_BLACK;
+uint32_t tickColourEven = TFT_DARKGREY;
+
 // User stub
 void sendMessage() ; // Prototype so PlatformIO doesn't complain
 Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage );
@@ -96,24 +99,33 @@ void nodeTimeAdjustedCallback(int32_t offset) {
     Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
 }
 
-void showTime(); // 
-Task taskShowTime(TASK_SECOND/8, TASK_FOREVER, &showTime);
+void showTime();
+Task taskShowTime(TASK_SECOND/50, TASK_FOREVER, &showTime);
 void showTime() {
   // update the LCD with the time
-  lcd.fillRect(0, 0, 320, 56, TFT_DARKGREY);
-  lcd.setTextColor(TFT_WHITE);
   long meshTime = mesh.getNodeTime();
+  long seconds = meshTime/1000/1000;
+  if (seconds % 2 == 0) {
+    lcd.fillRect(0, 0, 320, 56, tickColourEven);
+  }
+  else {
+    lcd.fillRect(0, 0, 320, 56, tickColourOdd);
+  }
+  lcd.setTextColor(TFT_WHITE);
   lcd.setTextSize(3);
   lcd.setTextDatum(BL_DATUM);
   lcd.drawString("T:", 10, 40);
   lcd.setTextDatum(BR_DATUM);
   lcd.drawNumber(meshTime, 300, 40);
+}
 
+long getTime() {
+  return mesh.getNodeTime();
 }
 
 void showNodeId() {
   // update the LCD with the time
-  lcd.fillRect(0, 60, 320, 56, TFT_DARKGREY);
+  lcd.fillRect(0, 60, 320, 56, TFT_BLACK);
   lcd.setTextColor(TFT_WHITE);
   lcd.setTextSize(3);
   lcd.setTextDatum(BL_DATUM);
@@ -124,7 +136,7 @@ void showNodeId() {
 
 void showNodeRole() {
   // update the LCD with the time
-  lcd.fillRect(0, 120, 320, 56, TFT_DARKGREY);
+  lcd.fillRect(0, 120, 320, 56, TFT_BLACK);
   lcd.setTextColor(TFT_WHITE);
   lcd.setTextSize(3);
   lcd.setTextDatum(BL_DATUM);
@@ -135,16 +147,25 @@ void showNodeRole() {
 
 void showConnectedNodes() {
   
-  lcd.fillRect(0, 180, 320, 56, TFT_DARKGREY);
+  std::list<uint32_t> nodes = mesh.getNodeList();
+
   lcd.setTextColor(TFT_WHITE);
   lcd.setTextSize(3);
   lcd.setTextDatum(BL_DATUM);
+
+  if (nodes.empty()) {
+    lcd.fillRect(0, 180, 320, 56, TFT_RED);
+  }
+  else {
+    lcd.fillRect(0, 180, 320, 56, TFT_BLACK);
+  }
   lcd.drawString("Nodes:", 10, 220);
+  lcd.drawNumber(nodes.size(), 130, 220);
+  
+  // print the connected node IDs
   lcd.setTextDatum(BR_DATUM);
   lcd.setTextSize(1);
   
-  
-  std::list<uint32_t> nodes = mesh.getNodeList();
   std::list<uint32_t>::iterator it;
   int yPos = 190;
   int xPos = 300;

@@ -76,6 +76,9 @@ From an instrument's perspective, there's no difference between a pause and a st
 If, during play, a note is placed in the sequencer ahead of the current position, but inside the look ahead range, it might still be sent out to the instrument. If the instrument doesn't have time to deliver the strike (because of the long stroke duration) then it'll just ignore it.
 
 
+### Time keeping
 
+The sequencer keeps the canonical musical timebase - seqTime. It can be queried for the current seqTime and instruments will have to do this and make themselves satisfied that they are on-beat before they join in. Where there is no sequencer (either running standalone, or just sequencer not started), an instrument can get time from it's neighbours (use raw meshTime perhaps?). Running standalone doesn't even need timebase though, since commands will be "time": 0, which means immediate.
 
+The sequencer has an internal clock (probably just the ESP32's internal clock).
 
