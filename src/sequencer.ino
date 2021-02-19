@@ -29,9 +29,7 @@ const String FIRMWARE_VERSION_NO = "0.1";
 
 // Set up machine role
 const char* PREFKEY_MACHINE_ROLE = "machineRole";
-//#define  DEFAULT_ROLE "TREETOPS"
-#define  DEFAULT_ROLE "CUPCAKES"
-String role = DEFAULT_ROLE;
+String role = "SEQUENCER";
 
 // Set up LCD and SD card peripherals
 TFT_eSPI lcd = TFT_eSPI();       // Invoke custom library
@@ -42,11 +40,74 @@ static int screenHeight = 240;
 uint32_t tickColourOdd = TFT_BLACK;
 uint32_t tickColourEven = TFT_DARKGREY;
 
+
+// some timing stuff
+// Example:
+// 120bpm means a beat happens ever 0.5s. (60/120.)
+// Each beat has 16 ticks, so a tick happens every 0.3125s (0.5/16.)
+int ticksPerBeat = 16;
+int beatsPerBar = 4;
+float bpm = 120.0;
+float beatInterval = 60000.0 / bpm;
+float tickInterval = beatInterval / ticksPerBeat;
+int ticksPerBar = ticksPerBeat * beatsPerBar;
+
+/*
+ticksPerBar is how many discrete addresses are available in that bar.
+tickInterval is how much time is in between each tick.
+
+Events have a position: bar.beat.tick
+Where bar is an integer
+beat is 1 to 4 (integer)
+tick is 0 to 15 (integer)
+1.1.0 is the very first event, first beat of the first bar,
+1.2.0 is the second beat,
+1.2.8 is halfway between the second and the third beat.
+
+Position
+  int: bar
+  byte: beat
+  byte: tick
+
+Event
+  Position: pos
+  EventType: type (eg "noteon")
+  int: note
+  int: velocity
+  int: channel
+
+Sequence is a list of Events.
+A Sequence Player works out real time (in millis) positions for each Event.
+It looks at which instrument is on each channel, and subtracts (stroke duration + strike duration) 
+of that instrument to create a "broadcast time" to decide when this event should be transmitted 
+as a command.
+
+Sequence Player checks it's queue of ordered events at least every <tickInterval>.
+It parcels the event up as a command:
+
+Event
+  long: time  (when the event should happen.)
+  EventType: type 
+  int: velocity
+
+And sends it directly to the instrument on the channel, which will buffer it until 
+it's clock is <time - stroke duration>.
+
+
+
+
+
+*/
+
+
+
+
+
 // User stub
 void sendMessage() ; // Prototype so PlatformIO doesn't complain
 Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage );
 void sendMessage() {
-  String msg = "CALL OUT GOURANGA! from node ";
+  String msg = "BEWARE THE SPIDER CONTROLLER from node ";
   msg += role;
   msg += mesh.getNodeId();
   mesh.sendBroadcast( msg );
@@ -73,9 +134,6 @@ void describeSelf() {
   doc["name"] = "machine name";
   doc["id"] = mesh.getNodeId();
   doc["role"] = role;
-  doc["stroke-duration"] = 100;
-  doc["strike-duration"] = 10;
-  doc["reset-duration"] = 55;
   serializeJsonPretty(doc, Serial);
   String msg;
   serializeJson(doc, msg);
@@ -177,95 +235,13 @@ void showConnectedNodes() {
 }
 
 
-boolean loadRole(String defaultRole) {
-  role = defaultRole;
-
-  boolean searchingSdCard = true;
-
-  // look on the SD card first
-  if (SD.begin(sdChipSelectPin)) {
-
-    File dir = SD.open("/");
-    while (searchingSdCard) {
-      File entry = dir.openNextFile();
-      if (!entry) { //End of files
-        searchingSdCard = false;
-        break;
-      }
-
-      //This block of code parses the file name to make sure it is valid.
-      if (!entry.isDirectory()) {
-        TSTRING name = entry.name();
-        if (name.length() > 5 && name.indexOf('_') != -1 && name.indexOf('.') != -1) {
-
-          TSTRING roleIndicator = name.substring(1, name.indexOf('_'));
-          // Serial.print("Found a file called '");
-          // Serial.print(roleIndicator);
-          // Serial.println("'.");
-          if (roleIndicator.equals("role")) {
-
-            TSTRING newRole = name.substring(name.lastIndexOf('_') + 1, name.indexOf('.'));
-            Serial.print("Extracted new role as '");
-            Serial.print(newRole);
-            Serial.println("'.");
-            preferences.putString(PREFKEY_MACHINE_ROLE, newRole);
-            searchingSdCard = false;
-
-            TSTRING extension = name.substring(name.indexOf('.') + 1, name.length());
-
-          }
-          else {
-            Serial.print(".");
-            // Serial.print("File '");
-            // Serial.print(name);
-            // Serial.println("' is not a role file: Ignoring.");
-          }
-        }
-        else {
-          Serial.print(".");
-          // Serial.print("File '");
-          // Serial.print(name);
-          // Serial.println("' doesn't have _ and . in it: Ignoring.");
-        }
-      }
-    }
-  }
-  else {
-        Serial.println("Could not mount SD card.");
-  }
-
-  // now look for it in prefs
-  String terribleDefaultRole = "TERRIBLE";
-  String roleFromPrefs = preferences.getString(PREFKEY_MACHINE_ROLE, terribleDefaultRole);
-  // Serial.print("roleFromPrefs is ");
-  // Serial.print(roleFromPrefs);
-  // Serial.println(".");
-  if (roleFromPrefs.equals(terribleDefaultRole)) {
-    Serial.println("Couldn't load the role from prefs!");
-    role = defaultRole;
-  }
-  else {
-    Serial.print("Loaded role ");
-    Serial.print(roleFromPrefs);
-    Serial.println(" from prefs.");
-    role = roleFromPrefs;
-    return true;
-  }
-  
-  return false;
-}
-
-// Look for a file called role_TREETOPS.txt 
 
 void setup() {
   Serial.begin(115200);
-  Serial.print("ORB ONLINE! My default role is ");
-  Serial.println(role);
-
+  Serial.print("SEQ ONLINE!");
+  
   // Load configuration
   preferences.begin("orb", false);
-
-  loadRole(DEFAULT_ROLE);
   Serial.print("Role confirmed as ");
   Serial.println(role);
 
@@ -308,10 +284,10 @@ void lcd_drawSplashScreen()
 
   // write it with a drop shadow
   lcd.setTextColor(TFT_MAROON);
-  lcd.drawString("One Robot Band.", targetPosition-1, barTop+23, 4);
+  lcd.drawString("O.R.B. SEQUENCER.", targetPosition-1, barTop+23, 4);
   lcd.setTextColor(TFT_WHITE);
-  lcd.drawString("One Robot Band.", targetPosition, barTop+24, 4);
-  lcd.drawString("One Robot Band.", targetPosition+1, barTop+24, 4); // bold it with double
+  lcd.drawString("O.R.B. SEQUENCER.", targetPosition, barTop+24, 4);
+  lcd.drawString("O.R.B. SEQUENCER.", targetPosition+1, barTop+24, 4); // bold it with double
 
   lcd.setTextColor(TFT_MAROON);
   lcd.drawString("An open-source art project", targetPosition+2, barTop+31+(9*3), 2);
