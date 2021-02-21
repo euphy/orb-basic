@@ -13,6 +13,7 @@
 #include <Preferences.h>
 #include <TFT_eSPI.h> // Hardware-specific library
 #include <ArduinoJson.h>
+#include <LinkedList.h>
 
 #include "firmware-build-name.h"
 
@@ -64,18 +65,49 @@ tick is 0 to 15 (integer)
 1.2.0 is the second beat,
 1.2.8 is halfway between the second and the third beat.
 
+
 Position
   int: bar
   byte: beat
   byte: tick
 
-Event
+*/
+
+
+typedef struct {
+  int bar;
+  byte beat;
+  byte tick;
+} OrbMusicPosition;
+
+enum OrbEventType {
+  noteon,
+  noteoff,
+  strike,
+  reset
+};
+
+
+/*
+Sequencer Event
   Position: pos
   EventType: type (eg "noteon")
   int: note
   int: velocity
   int: channel
+*/
 
+typedef struct {
+  OrbMusicPosition position;
+  OrbEventType type;
+  byte note;
+  byte velocity;
+  byte channel;
+} OrbSequenceEvent;
+
+
+
+/*
 Sequence is a list of Events.
 A Sequence Player works out real time (in millis) positions for each Event.
 It looks at which instrument is on each channel, and subtracts (stroke duration + strike duration) 
@@ -83,28 +115,61 @@ of that instrument to create a "broadcast time" to decide when this event should
 as a command.
 
 Sequence Player checks it's queue of ordered events at least every <tickInterval>.
-It parcels the event up as a command:
+It parcels the event up as a instrument command:
 
-Event
+Instrument Event
   long: time  (when the event should happen.)
   EventType: type 
   int: velocity
+*/
 
+typedef struct {
+  long time;
+  OrbEventType type;
+  byte note;
+  byte velocity;
+  byte channel;
+} OrbInstrumentEvent;
+
+/*
 And sends it directly to the instrument on the channel, which will buffer it until 
 it's clock is <time - stroke duration>.
-
-
-
-
-
 */
 
 
+long musicPositionInMillis(OrbMusicPosition *position) {
+  long val = 0L;
+  val = position->bar * ticksPerBar;
+  val += position->beat * beatInterval;
+  val += position->tick * tickInterval;
+  return val;
+}
 
+void printMusicTime(OrbMusicPosition *position) {
+  Serial.print("Pos ");
+  Serial.print(position->bar);
+  Serial.print(":");
+  Serial.print(position->beat);
+  Serial.print(":");
+  Serial.print(position->tick);
+  Serial.print(" (");
+  Serial.print(musicPositionInMillis(position));
+  Serial.println("ms)");
+}
 
+OrbSequenceEvent seqEvent = {{1,2,3}, noteon, 12, 64, 10};
+OrbInstrumentEvent insEvent = {
+  millis()+musicPositionInMillis(&seqEvent.position),
+  seqEvent.type,
+  seqEvent.note,
+  seqEvent.velocity,
+  seqEvent.channel
+};
 
-// User stub
-void sendMessage() ; // Prototype so PlatformIO doesn't complain
+LinkedList<OrbSequenceEvent> *seqEvents = new LinkedList<OrbSequenceEvent>;
+LinkedList<OrbInstrumentEvent> *insEvents = new LinkedList<OrbInstrumentEvent>;
+
+void sendMessage(); // Prototype so PlatformIO doesn't complain
 Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage );
 void sendMessage() {
   String msg = "BEWARE THE SPIDER CONTROLLER from node ";
@@ -234,12 +299,149 @@ void showConnectedNodes() {
   lcd.setTextSize(3);
 }
 
+// channel info
+enum OrbInstrumentState {
+  running, 
+  stopped, 
+  disconnected
+};
+
+struct OrbInstrumentDefinition {
+  OrbInstrumentState state;
+  long meshId;
+  int strokeDuration;
+  int strikeDuration;
+  int resetDuration;
+};
+
+void printInstrumentDefinition(struct OrbInstrumentDefinition *ins) {
+  Serial.print("id: ");
+  Serial.print(ins->meshId);
+  Serial.print("\tstate: ");
+  Serial.print(ins->state);
+  Serial.print("\tstrokeDuration: ");
+  Serial.print(ins->strokeDuration);
+  Serial.print("\tstrikeDuration: ");
+  Serial.print(ins->strikeDuration);
+  Serial.print("\tresetDuration: ");
+  Serial.println(ins->resetDuration);
+}
+
+// Why doesn't this typedeffed version work?
+// typedef struct  {
+//   OrbInstrumentState state;
+//   long meshId;
+//   int strokeDuration;
+//   int strikeDuration;
+//   int resetDuration;
+// } OrbInstrumentDefinition;
+
+// void printInstrumentDefinition(OrbInstrumentDefinition *ins) {
+//   Serial.print("id: ");
+//   Serial.print(ins->meshId);
+//   Serial.print("\tstate: ");
+//   Serial.print(ins->state);
+//   Serial.print("\tstrokeDuration: ");
+//   Serial.print(ins->strokeDuration);
+//   Serial.print("\tstrikeDuration: ");
+//   Serial.print(ins->strikeDuration);
+//   Serial.print("\tresetDuration: ");
+//   Serial.println(ins->resetDuration);
+// }
+
+
+
+void printSequenceEvent(OrbSequenceEvent *event) {
+  Serial.print("");
+  OrbMusicPosition *position = &event->position;
+  Serial.print(position->bar);
+  Serial.print(":");
+  Serial.print(position->beat);
+  Serial.print(":");
+  Serial.print(position->tick);
+  Serial.print(" (");
+  Serial.print(musicPositionInMillis(position));
+  Serial.print("ms) ");
+  Serial.print("\ttype: ");
+  Serial.print(event->type);
+  Serial.print("\tnote: ");
+  Serial.print(event->note);
+  Serial.print("\tvelocity: ");
+  Serial.print(event->velocity);
+  Serial.print("\tchannel: ");
+  Serial.println(event->channel);
+}
+
+void printInstrumentEvent(OrbInstrumentEvent *event) {
+  Serial.print("time: ");
+  Serial.print(event->time);
+  Serial.print("ms ");
+  Serial.print("\ttype: ");
+  Serial.print(event->type);
+  Serial.print("\tnote: ");
+  Serial.print(event->note);
+  Serial.print("\tvelocity: ");
+  Serial.print(event->velocity);
+  Serial.print("\tchannel: ");
+  Serial.println(event->channel);
+}
+
+
+
 
 
 void setup() {
   Serial.begin(115200);
-  Serial.print("SEQ ONLINE!");
+  Serial.println("SEQ ONLINE!");
   
+  Serial.println(seqEvents->size());
+  seqEvents->add(seqEvent);
+  seqEvents->add({{2,0,4}, noteon, 10, 65, 10});
+  seqEvents->add({{0,0,4}, noteon, 10, 65, 10});
+  seqEvents->add({{1,0,4}, noteon, 9, 65, 10});
+  seqEvents->add({{4,0,4}, noteon, 8, 65, 10});
+  seqEvents->add({{5,0,4}, noteon, 7, 65, 10});
+  seqEvents->add({{6,0,4}, noteon, 6, 65, 10});
+  Serial.println(seqEvents->size());
+
+  // dump out sequence events
+  for (int i=0; i<seqEvents->size(); i++) {
+    OrbSequenceEvent event = seqEvents->get(i);
+    printSequenceEvent(&event);
+  };
+
+  // build list of instrument events
+  for (int i=0; i<seqEvents->size(); i++) {
+    OrbSequenceEvent inEvent = seqEvents->get(i);
+    OrbInstrumentEvent outEvent = {
+      millis()+musicPositionInMillis(&inEvent.position),
+      inEvent.type,
+      inEvent.note,
+      inEvent.velocity
+    };
+    insEvents->add(outEvent);
+    printInstrumentEvent(&outEvent);
+  };
+  
+  OrbInstrumentDefinition snare = {disconnected, 0L, 1000, 125, 1600};
+  
+  Serial.print("id: ");
+  Serial.print(snare.meshId);
+  Serial.print("\tstate: ");
+  Serial.print(snare.state);
+  Serial.print("\tstrokeDuration: ");
+  Serial.print(snare.strokeDuration);
+  Serial.print("\tstrikeDuration: ");
+  Serial.print(snare.strikeDuration);
+  Serial.print("\tresetDuration: ");
+  Serial.println(snare.resetDuration);
+
+  printInstrumentDefinition(&snare);
+
+
+
+
+
   // Load configuration
   preferences.begin("orb", false);
   Serial.print("Role confirmed as ");
