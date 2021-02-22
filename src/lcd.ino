@@ -42,7 +42,7 @@ void lcd_initLCD()
 }
 
 
-void showTime() {
+void lcd_showTime() {
   // update the LCD with the time
   long meshTime = mesh.getNodeTime();
   long seconds = meshTime/1000/1000;
@@ -61,7 +61,7 @@ void showTime() {
 }
 
 
-void showNodeId() {
+void lcd_showNodeId() {
   // update the LCD with the time
   lcd.fillRect(0, 60, 320, 56, TFT_BLACK);
   lcd.setTextColor(TFT_WHITE);
@@ -72,7 +72,7 @@ void showNodeId() {
   lcd.drawNumber(mesh.getNodeId(), 300, 100);
 }
 
-void showNodeRole() {
+void lcd_showNodeRole() {
   // update the LCD with the time
   lcd.fillRect(0, 120, 320, 56, TFT_BLACK);
   lcd.setTextColor(TFT_WHITE);
@@ -84,7 +84,7 @@ void showNodeRole() {
 }
 
 
-void showConnectedNodes() {
+void lcd_showConnectedNodes() {
   
   std::list<uint32_t> nodes = mesh.getNodeList();
 

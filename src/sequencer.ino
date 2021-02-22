@@ -29,12 +29,12 @@ Preferences preferences;
 
 // Tasks
 // Prototypes are here - implementation for these is elsewhere
-void sendMessage(); // Prototype so PlatformIO doesn't complain
-Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage );
-void describeSelf();
-Task taskDescribeSelf(TASK_SECOND*2, TASK_FOREVER, &describeSelf);
-void showTime();
-Task taskShowTime(TASK_SECOND/50, TASK_FOREVER, &showTime);
+void mesh_sendMessage(); // Prototype so PlatformIO doesn't complain
+Task mesh_taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &mesh_sendMessage );
+void mesh_describeSelf();
+Task mesh_taskDescribeSelf(TASK_SECOND*2, TASK_FOREVER, &mesh_describeSelf);
+void mesh_showTime();
+Task mesh_taskShowTime(TASK_SECOND/50, TASK_FOREVER, &lcd_showTime);
 
 
 
@@ -53,7 +53,6 @@ const String FIRMWARE_VERSION_NO = "0.1";
 // Machine role
 const char* PREFKEY_MACHINE_ROLE = "machineRole";
 String role = "SEQUENCER";
-
 
 
 // Sequencer timing basic parameters
@@ -225,18 +224,18 @@ void setup() {
   mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
 
   mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT );
-  mesh.onReceive(&receivedCallback);
-  mesh.onNewConnection(&newConnectionCallback);
-  mesh.onChangedConnections(&changedConnectionCallback);
-  mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
+  mesh.onReceive(&mesh_receivedCallback);
+  mesh.onNewConnection(&mesh_newConnectionCallback);
+  mesh.onChangedConnections(&mesh_changedConnectionCallback);
+  mesh.onNodeTimeAdjusted(&mesh_nodeTimeAdjustedCallback);
   mesh.initOTAReceive(role);
 
-  userScheduler.addTask(taskSendMessage);
-  userScheduler.addTask(taskShowTime);
-  userScheduler.addTask(taskDescribeSelf);
-  taskSendMessage.enable();
-  taskShowTime.enable();
-  taskDescribeSelf.enable();
+  userScheduler.addTask(mesh_taskSendMessage);
+  userScheduler.addTask(mesh_taskShowTime);
+  userScheduler.addTask(mesh_taskDescribeSelf);
+  mesh_taskSendMessage.enable();
+  mesh_taskShowTime.enable();
+  mesh_taskDescribeSelf.enable();
 
 }
 
