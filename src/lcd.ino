@@ -41,11 +41,11 @@ void lcd_initLCD()
   lcd.fillScreen(TFT_BLACK);
 }
 
-
 void lcd_showTime() {
   // update the LCD with the time
-  long meshTime = mesh.getNodeTime();
-  long seconds = meshTime/1000/1000;
+  long milliseconds = millis();
+  long seconds = milliseconds/1000;
+
   if (seconds % 2 == 0) {
     lcd.fillRect(0, 0, 320, 56, tickColourEven);
   }
@@ -57,20 +57,41 @@ void lcd_showTime() {
   lcd.setTextDatum(BL_DATUM);
   lcd.drawString("T:", 10, 40);
   lcd.setTextDatum(BR_DATUM);
-  lcd.drawNumber(meshTime, 300, 40);
-}
+  lcd.drawNumber(milliseconds, 300, 40);
 
+  
+  int totalBeats = milliseconds/beatInterval;
+  int totalBars = totalBeats/beatsPerBar;
+  int totalTicks = milliseconds/tickInterval;
 
-void lcd_showNodeId() {
-  // update the LCD with the time
+  int bar = totalBars;
+  int beat = totalBeats - (bar*beatsPerBar)+1;
+  int tick = totalTicks - (totalBeats*ticksPerBeat)+1;
+  
+
   lcd.fillRect(0, 60, 320, 56, TFT_BLACK);
   lcd.setTextColor(TFT_WHITE);
   lcd.setTextSize(3);
   lcd.setTextDatum(BL_DATUM);
-  lcd.drawString("ID:", 10, 100);
+  lcd.drawString("M:", 10, 100);
   lcd.setTextDatum(BR_DATUM);
-  lcd.drawNumber(mesh.getNodeId(), 300, 100);
+  lcd.drawNumber(bar, 100, 100);
+  lcd.drawNumber(beat, 200, 100);
+  lcd.drawNumber(tick, 300, 100);
+
 }
+
+
+// void lcd_showNodeId() {
+//   // update the LCD with the time
+//   lcd.fillRect(0, 60, 320, 56, TFT_BLACK);
+//   lcd.setTextColor(TFT_WHITE);
+//   lcd.setTextSize(3);
+//   lcd.setTextDatum(BL_DATUM);
+//   lcd.drawString("ID:", 10, 100);
+//   lcd.setTextDatum(BR_DATUM);
+//   lcd.drawNumber(mesh.getNodeId(), 300, 100);
+// }
 
 void lcd_showNodeRole() {
   // update the LCD with the time

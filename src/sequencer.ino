@@ -58,7 +58,7 @@ String role = "SEQUENCER";
 // Sequencer timing basic parameters
 int ticksPerBeat = 16;
 int beatsPerBar = 4;
-float bpm = 120.0;
+float bpm = 90.0;
 float beatInterval = 60000.0 / bpm;
 float tickInterval = beatInterval / ticksPerBeat;
 int ticksPerBar = ticksPerBeat * beatsPerBar;
