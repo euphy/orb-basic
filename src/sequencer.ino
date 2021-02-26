@@ -43,7 +43,7 @@ TFT_eSPI lcd = TFT_eSPI();       // Invoke custom library
 int sdChipSelectPin = 25;
 static int screenWidth = 320;
 static int screenHeight = 240;
-uint32_t tickColourOdd = TFT_BLACK;
+uint32_t tickColourOdd = TFT_WHITE;
 uint32_t tickColourEven = TFT_DARKGREY;
 
 
@@ -58,13 +58,20 @@ String role = "SEQUENCER";
 // Sequencer timing basic parameters
 int ticksPerBeat = 16;
 int beatsPerBar = 4;
-float bpm = 90.0;
+float bpm = 120.0;
 float beatInterval = 60000.0 / bpm;
 float tickInterval = beatInterval / ticksPerBeat;
 int ticksPerBar = ticksPerBeat * beatsPerBar;
 // Example:
 // 120bpm means a beat happens ever 0.5s. (60/120.)
 // Each beat has 16 ticks, so a tick happens every 0.3125s (0.5/16.)
+
+long sequencerTime = 0L;
+long offset = 0L;
+int bar = 0;
+int beat = 0;
+int tick = 0;
+boolean drawLabels = true;
 
 /*
 ticksPerBar is how many discrete addresses are available in that bar.

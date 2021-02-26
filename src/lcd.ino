@@ -42,43 +42,89 @@ void lcd_initLCD()
 }
 
 void lcd_showTime() {
-  // update the LCD with the time
-  long milliseconds = millis();
-  long seconds = milliseconds/1000;
 
+  // update the LCD with the time
+  long microseconds = micros();
+  long seconds = microseconds/1000/1000;
+
+  int textSize = 2;
+  int rowPosition = textSize * 10;
+
+  // lcd.fillRect(0, 0, 320, (rowPosition*3+24), TFT_BLACK);
+
+  // sequencer time
+  lcd.setTextSize(textSize);
+
+  if (drawLabels) {
+    lcd.setTextDatum(BL_DATUM);
+    lcd.drawString("SEQ TIME:", 10, rowPosition);
+  }
+  lcd.setTextDatum(BR_DATUM);
+
+  lcd.setTextColor(TFT_BLACK);
+  lcd.drawNumber(sequencerTime, 300, rowPosition);
   if (seconds % 2 == 0) {
-    lcd.fillRect(0, 0, 320, 56, tickColourEven);
+    lcd.setTextColor(tickColourEven);
   }
   else {
-    lcd.fillRect(0, 0, 320, 56, tickColourOdd);
+    lcd.setTextColor(tickColourOdd);
   }
-  lcd.setTextColor(TFT_WHITE);
-  lcd.setTextSize(3);
-  lcd.setTextDatum(BL_DATUM);
-  lcd.drawString("T:", 10, 40);
-  lcd.setTextDatum(BR_DATUM);
-  lcd.drawNumber(milliseconds, 300, 40);
+  lcd.drawNumber(microseconds, 300, rowPosition);
+  sequencerTime = microseconds;
 
   
-  int totalBeats = milliseconds/beatInterval;
+  // offset from mesh time
+  long currentOffset = microseconds - mesh.getNodeTime();
+  rowPosition += textSize * 10;
+  if (drawLabels) {
+    lcd.setTextColor(TFT_WHITE);
+    lcd.setTextDatum(BL_DATUM);
+    lcd.drawString("OFFSET:", 10, rowPosition);
+  }
+  lcd.setTextDatum(BR_DATUM);
+  lcd.setTextColor(TFT_BLACK);
+  lcd.drawNumber(offset, 300, rowPosition);
+  lcd.setTextColor(TFT_WHITE);
+  lcd.drawNumber(currentOffset, 300, rowPosition);
+  offset = currentOffset;
+  
+
+  // Show musical time
+  rowPosition += textSize * 10+8;
+  int totalBeats = microseconds/1000/beatInterval;
   int totalBars = totalBeats/beatsPerBar;
-  int totalTicks = milliseconds/tickInterval;
+  int totalTicks = microseconds/1000/tickInterval;
 
-  int bar = totalBars;
-  int beat = totalBeats - (bar*beatsPerBar)+1;
-  int tick = totalTicks - (totalBeats*ticksPerBeat)+1;
+  int currentBar = totalBars;
+  int currentBeat = totalBeats - (currentBar*beatsPerBar)+1;
+  int currentTick = totalTicks - (totalBeats*ticksPerBeat)+1;
   
 
-  lcd.fillRect(0, 60, 320, 56, TFT_BLACK);
+  rowPosition = 80;
   lcd.setTextColor(TFT_WHITE);
-  lcd.setTextSize(3);
-  lcd.setTextDatum(BL_DATUM);
-  lcd.drawString("M:", 10, 100);
-  lcd.setTextDatum(BR_DATUM);
-  lcd.drawNumber(bar, 100, 100);
-  lcd.drawNumber(beat, 200, 100);
-  lcd.drawNumber(tick, 300, 100);
+  lcd.setTextSize(2);
+  if (drawLabels) {
+    lcd.setTextDatum(BR_DATUM);
+    lcd.drawString("Bar", 50, rowPosition);
+    lcd.drawString("Beat", 180, rowPosition);
+    lcd.drawString("Tick", 270, rowPosition);
+  }
 
+  lcd.setTextSize(3);
+  lcd.setTextColor(TFT_BLACK);
+  lcd.drawNumber(bar, 115, rowPosition);
+  lcd.drawNumber(beat, 210, rowPosition);
+  lcd.drawNumber(tick, 310, rowPosition);
+
+  lcd.setTextColor(TFT_WHITE);
+  lcd.drawNumber(currentBar, 115, rowPosition);
+  lcd.drawNumber(currentBeat, 210, rowPosition);
+  lcd.drawNumber(currentTick, 310, rowPosition);
+  bar = currentBar;
+  beat = currentBeat;
+  tick = currentTick;
+
+  drawLabels = false;
 }
 
 
