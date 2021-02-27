@@ -45,7 +45,9 @@ void lcd_showTime() {
 
   // update the LCD with the time
   long microseconds = micros();
-  long seconds = microseconds/1000/1000;
+  long milliseconds = microseconds/1000;
+  long seconds = milliseconds/1000;
+  long currentOffset = milliseconds - (mesh.getNodeTime()/1000);
 
   int textSize = 2;
   int rowPosition = textSize * 10;
@@ -69,12 +71,11 @@ void lcd_showTime() {
   else {
     lcd.setTextColor(tickColourOdd);
   }
-  lcd.drawNumber(microseconds, 300, rowPosition);
-  sequencerTime = microseconds;
+  lcd.drawNumber(milliseconds, 300, rowPosition);
+  sequencerTime = milliseconds;
 
   
   // offset from mesh time
-  long currentOffset = microseconds - mesh.getNodeTime();
   rowPosition += textSize * 10;
   if (drawLabels) {
     lcd.setTextColor(TFT_WHITE);
@@ -180,4 +181,44 @@ void lcd_showConnectedNodes() {
     yPos+=8;
   }
   lcd.setTextSize(3);
+}
+
+void lcd_showInstrumentEvent(OrbInstrumentEvent *event, int x, int y) {
+
+    // "%d:%d:%d t:%d  v:%d c:%d",
+  
+  char buffer [50];
+  sprintf(buffer, 
+    "%08d t:%02d n:%02d v:%03d c:%02d",
+    event->time,
+    event->type,
+    event->note, 
+    event->velocity,
+    event->channel);
+
+  lcd.drawString(buffer, x, y);
+
+
+}
+
+void lcd_showQueue() {
+  OrbInstrumentEvent event = insEvents->get(0);
+  lcd.setTextDatum(BL_DATUM);
+  lcd.setTextColor(TFT_RED);
+  lcd.setTextSize(2);
+
+  // build list of instrument events
+  lcd.fillRect(0, 130-16, 320, 130+(seqEvents->size()*16), TFT_BLACK);
+  int row = 0;
+  for (int i=0; i<seqEvents->size(); i++) {
+    OrbSequenceEvent inEvent = seqEvents->get(i);
+    OrbInstrumentEvent outEvent = {
+      sequencerTime + musicPositionInMillis(&inEvent.position),
+      inEvent.type,
+      inEvent.note,
+      inEvent.velocity
+    };
+    lcd_showInstrumentEvent(&outEvent, 0, 130+(row*16));
+    row++;
+  };
 }

@@ -42,8 +42,8 @@ void mesh_describeSelf() {
   }
   Serial.println(".");
 
-  lcd_showNodeRole();  
-  lcd_showConnectedNodes();
+  // lcd_showNodeRole();  
+  // lcd_showConnectedNodes();
 }
 
 

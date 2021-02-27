@@ -33,8 +33,11 @@ void mesh_sendMessage(); // Prototype so PlatformIO doesn't complain
 Task mesh_taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &mesh_sendMessage );
 void mesh_describeSelf();
 Task mesh_taskDescribeSelf(TASK_SECOND*2, TASK_FOREVER, &mesh_describeSelf);
-void mesh_showTime();
-Task mesh_taskShowTime(TASK_SECOND/50, TASK_FOREVER, &lcd_showTime);
+void lcd_showTime();
+Task task_lcdShowTime(TASK_SECOND/50, TASK_FOREVER, &lcd_showTime);
+void lcd_showQueue();
+Task task_lcdShowQueue(TASK_SECOND/10, TASK_FOREVER, &lcd_showQueue);
+
 
 
 
@@ -58,7 +61,7 @@ String role = "SEQUENCER";
 // Sequencer timing basic parameters
 int ticksPerBeat = 16;
 int beatsPerBar = 4;
-float bpm = 120.0;
+float bpm = 90.0;
 float beatInterval = 60000.0 / bpm;
 float tickInterval = beatInterval / ticksPerBeat;
 int ticksPerBar = ticksPerBeat * beatsPerBar;
@@ -66,11 +69,11 @@ int ticksPerBar = ticksPerBeat * beatsPerBar;
 // 120bpm means a beat happens ever 0.5s. (60/120.)
 // Each beat has 16 ticks, so a tick happens every 0.3125s (0.5/16.)
 
-long sequencerTime = 0L;
+unsigned long sequencerTime = 0L;
 long offset = 0L;
-int bar = 0;
-int beat = 0;
-int tick = 0;
+unsigned int bar = 0;
+unsigned int beat = 0;
+unsigned int tick = 0;
 boolean drawLabels = true;
 
 /*
@@ -168,19 +171,20 @@ void printInstrumentEvent(OrbInstrumentEvent *event) {
 LinkedList<OrbSequenceEvent> *seqEvents = new LinkedList<OrbSequenceEvent>;
 LinkedList<OrbInstrumentEvent> *insEvents = new LinkedList<OrbInstrumentEvent>;
 
+void fillSeqEvents() {
+  seqEvents->add({{2,0,1}, noteon, 10, 65, 10});
+  seqEvents->add({{0,1,4}, noteon, 10, 65, 10});
+  seqEvents->add({{1,2,6}, noteon, 9, 65, 10});
+  seqEvents->add({{4,3,9}, noteon, 8, 65, 10});
+  seqEvents->add({{5,4,12}, noteon, 7, 65, 10});
+  seqEvents->add({{6,1,14}, noteon, 6, 65, 10});
+}
 
 void setup() {
   Serial.begin(115200);
   Serial.println("SEQ ONLINE!");
-  
-  Serial.println(seqEvents->size());
-  seqEvents->add({{2,0,4}, noteon, 10, 65, 10});
-  seqEvents->add({{0,0,4}, noteon, 10, 65, 10});
-  seqEvents->add({{1,0,4}, noteon, 9, 65, 10});
-  seqEvents->add({{4,0,4}, noteon, 8, 65, 10});
-  seqEvents->add({{5,0,4}, noteon, 7, 65, 10});
-  seqEvents->add({{6,0,4}, noteon, 6, 65, 10});
-  Serial.println(seqEvents->size());
+
+  fillSeqEvents();
 
   // dump out sequence events
   for (int i=0; i<seqEvents->size(); i++) {
@@ -219,7 +223,6 @@ void setup() {
 
 
 
-
   // Load configuration
   preferences.begin("orb", false);
   Serial.print("Role confirmed as ");
@@ -238,11 +241,15 @@ void setup() {
   mesh.initOTAReceive(role);
 
   userScheduler.addTask(mesh_taskSendMessage);
-  userScheduler.addTask(mesh_taskShowTime);
+  userScheduler.addTask(task_lcdShowTime);
   userScheduler.addTask(mesh_taskDescribeSelf);
-  mesh_taskSendMessage.enable();
-  mesh_taskShowTime.enable();
-  mesh_taskDescribeSelf.enable();
+  userScheduler.addTask(task_lcdShowQueue);
+  
+  // mesh_taskSendMessage.enable();
+  // mesh_taskDescribeSelf.enable();
+  task_lcdShowTime.enable();
+  task_lcdShowQueue.enable();
+  
 
 }
 
