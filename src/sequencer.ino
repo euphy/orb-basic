@@ -103,13 +103,13 @@ it's clock is <time - stroke duration>.
 
 long musicPositionInMillis(OrbMusicPosition *position) {
   long val = 0L;
-  val = position->bar * ticksPerBar;
+  val = position->bar * ticksPerBar*tickInterval;
   val += position->beat * beatInterval;
   val += position->tick * tickInterval;
   return val;
 }
 
-void printMusicTime(OrbMusicPosition *position, long time) {
+void printMusicTime(OrbMusicPosition *position) {
   Serial.print("Pos ");
   Serial.print(position->bar);
   Serial.print(":");
@@ -153,32 +153,47 @@ void printSequenceEvent(OrbSequenceEvent *event) {
   Serial.println(event->channel);
 }
 
-void printInstrumentEvent(OrbInstrumentEvent *event) {
-  Serial.print("time: ");
-  Serial.print(event->time);
-  Serial.print("ms ");
-  Serial.print("\ttype: ");
-  Serial.print(event->type);
-  Serial.print("\tnote: ");
-  Serial.print(event->note);
-  Serial.print("\tvelocity: ");
-  Serial.print(event->velocity);
-  Serial.print("\tchannel: ");
-  Serial.println(event->channel);
-}
-
 // These are an actual sequence 
 LinkedList<OrbSequenceEvent> *seqEvents = new LinkedList<OrbSequenceEvent>;
-LinkedList<OrbInstrumentEvent> *insEvents = new LinkedList<OrbInstrumentEvent>;
+
+int compareSequencerEventTime(OrbSequenceEvent &a, OrbSequenceEvent &b) {
+  unsigned long aTime = a.time;
+  unsigned long bTime = b.time;
+
+  int val = 0;
+  if (aTime > bTime) val = 1;
+  else if (aTime < bTime) val = -1;
+
+  Serial.print("compare ");
+  Serial.println(val);
+  return val;
+}
+
+void sortSequencerEvent(LinkedList<OrbSequenceEvent> *events) {
+  for (int i=0; i<events->size(); i++) {
+    OrbSequenceEvent seqEvent = seqEvents->get(i);
+    seqEvent.time = musicPositionInMillis(&seqEvent.position); 
+    events->set(i, seqEvent);
+  }
+
+  events->sort(compareSequencerEventTime);
+}
 
 void fillSeqEvents() {
-  seqEvents->add({{2,0,1}, noteon, 10, 65, 10});
-  seqEvents->add({{0,1,4}, noteon, 10, 65, 10});
-  seqEvents->add({{1,2,6}, noteon, 9, 65, 10});
-  seqEvents->add({{4,3,9}, noteon, 8, 65, 10});
-  seqEvents->add({{5,4,12}, noteon, 7, 65, 10});
-  seqEvents->add({{6,1,14}, noteon, 6, 65, 10});
+  int numberOfEvents=20;
+  int maxBars = 10;
+  for (int i = 0; i<numberOfEvents; i++) {
+    seqEvents->add({
+      { random(0, maxBars),
+        random(1,beatsPerBar), 
+        random(1,ticksPerBeat)}, 0L, noteon, random(0,128), random(0,128), 10});
+  }
+
+  sortSequencerEvent(seqEvents);
 }
+
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -192,19 +207,6 @@ void setup() {
     printSequenceEvent(&event);
   };
 
-  // build list of instrument events
-  for (int i=0; i<seqEvents->size(); i++) {
-    OrbSequenceEvent inEvent = seqEvents->get(i);
-    OrbInstrumentEvent outEvent = {
-      millis()+musicPositionInMillis(&inEvent.position),
-      inEvent.type,
-      inEvent.note,
-      inEvent.velocity
-    };
-    insEvents->add(outEvent);
-    printInstrumentEvent(&outEvent);
-  };
-  
   OrbInstrumentDefinition snare = {disconnected, 0L, 1000, 125, 1600};
   
   Serial.print("id: ");

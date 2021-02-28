@@ -16,19 +16,12 @@ enum OrbEventType {
 
 typedef struct {
   OrbMusicPosition position;
+  unsigned long time;
   OrbEventType type;
   byte note;
   byte velocity;
   byte channel;
 } OrbSequenceEvent;
-
-typedef struct {
-  long time;
-  OrbEventType type;
-  byte note;
-  byte velocity;
-  byte channel;
-} OrbInstrumentEvent;
 
 enum OrbInstrumentState {
   running, 
