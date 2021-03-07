@@ -45,7 +45,7 @@ void lcd_showTime() {
 
   // update the LCD with the time
   long microseconds = micros();
-  long milliseconds = microseconds/1000;
+  long milliseconds = seq_getSequencerTime();
   long seconds = milliseconds/1000;
   long currentOffset = milliseconds - (mesh.getNodeTime()/1000);
 
@@ -64,7 +64,7 @@ void lcd_showTime() {
   lcd.setTextDatum(BR_DATUM);
 
   lcd.setTextColor(TFT_BLACK);
-  lcd.drawNumber(sequencerTime, 300, rowPosition);
+  lcd.drawNumber(lastDrawnSequencerTime, 300, rowPosition);
   if (seconds % 2 == 0) {
     lcd.setTextColor(tickColourEven);
   }
@@ -72,7 +72,7 @@ void lcd_showTime() {
     lcd.setTextColor(tickColourOdd);
   }
   lcd.drawNumber(milliseconds, 300, rowPosition);
-  sequencerTime = milliseconds;
+  lastDrawnSequencerTime = milliseconds;
 
   
   // offset from mesh time
@@ -84,10 +84,10 @@ void lcd_showTime() {
   }
   lcd.setTextDatum(BR_DATUM);
   lcd.setTextColor(TFT_BLACK);
-  lcd.drawNumber(offset, 300, rowPosition);
+  lcd.drawNumber(offsetFromMeshTime, 300, rowPosition);
   lcd.setTextColor(TFT_WHITE);
-  lcd.drawNumber(currentOffset, 300, rowPosition);
-  offset = currentOffset;
+  offsetFromMeshTime = currentOffset;
+  lcd.drawNumber(offsetFromMeshTime, 300, rowPosition);
   
 
   // Show musical time

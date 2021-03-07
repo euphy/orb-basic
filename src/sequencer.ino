@@ -30,7 +30,7 @@ Preferences preferences;
 // Tasks
 // Prototypes are here - implementation for these is elsewhere
 void mesh_sendMessage(); // Prototype so PlatformIO doesn't complain
-Task mesh_taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &mesh_sendMessage );
+Task mesh_taskSendMessage( TASK_SECOND*1 , TASK_FOREVER, &mesh_sendMessage);
 void mesh_describeSelf();
 Task mesh_taskDescribeSelf(TASK_SECOND*2, TASK_FOREVER, &mesh_describeSelf);
 void lcd_showTime();
@@ -63,19 +63,27 @@ int ticksPerBeat = 16;
 int beatsPerBar = 4;
 float bpm = 90.0;
 float beatInterval = 60000.0 / bpm;
+float barInterval = beatInterval*beatsPerBar;
 float tickInterval = beatInterval / ticksPerBeat;
 int ticksPerBar = ticksPerBeat * beatsPerBar;
 // Example:
 // 120bpm means a beat happens ever 0.5s. (60/120.)
 // Each beat has 16 ticks, so a tick happens every 0.3125s (0.5/16.)
 
+// Some tasks that happen on time
+void seq_onBeat();
+void seq_onBar();
+Task seq_taskOnBeat(TASK_MILLISECOND*beatInterval, TASK_FOREVER, &seq_onBeat);
+Task seq_taskOnBar(TASK_MILLISECOND*barInterval, TASK_FOREVER, &seq_onBar);
+
 unsigned long sequencerTime = 0L;
-long offset = 0L;
+signed long offsetFromSystemTime = 0L;
+long offsetFromMeshTime = 0L;
+unsigned long lastDrawnSequencerTime = 0L;
 unsigned int bar = 0;
 unsigned int beat = 0;
 unsigned int tick = 0;
 boolean drawLabels = true;
-
 /*
 ticksPerBar is how many discrete addresses are available in that bar.
 tickInterval is how much time is in between each tick.
@@ -100,6 +108,13 @@ It parcels the event up as a instrument command:
 And sends it directly to the instrument on the channel, which will buffer it until 
 it's clock is <time - stroke duration>.
 */
+
+void seq_handleEvent();
+Task seq_taskHandleEvents(TASK_MILLISECOND*beatInterval, TASK_FOREVER, &seq_handleEvent);
+
+
+int loopAfterBar = 16;
+
 
 long musicPositionInMillis(OrbMusicPosition *position) {
   long val = 0L;
@@ -143,7 +158,8 @@ void printSequenceEvent(OrbSequenceEvent *event) {
   Serial.print(":");
   Serial.print(position->tick);
   Serial.print(" ");
-  Serial.print("\ttype: ");
+  Serial.print(event->time);
+  Serial.print("ms\ttype: ");
   Serial.print(event->type);
   Serial.print("\tnote: ");
   Serial.print(event->note);
@@ -155,6 +171,7 @@ void printSequenceEvent(OrbSequenceEvent *event) {
 
 // These are an actual sequence 
 LinkedList<OrbSequenceEvent> *seqEvents = new LinkedList<OrbSequenceEvent>;
+LinkedList<OrbSequenceEvent> *pastSeqEvents = new LinkedList<OrbSequenceEvent>;
 
 int compareSequencerEventTime(OrbSequenceEvent &a, OrbSequenceEvent &b) {
   unsigned long aTime = a.time;
@@ -179,12 +196,10 @@ void sortSequencerEvent(LinkedList<OrbSequenceEvent> *events) {
   events->sort(compareSequencerEventTime);
 }
 
-void fillSeqEvents() {
-  int numberOfEvents=20;
-  int maxBars = 10;
+void fillSeqEvents(int numberOfEvents, int firstBar, int lastBar) {
   for (int i = 0; i<numberOfEvents; i++) {
     seqEvents->add({
-      { random(0, maxBars),
+      { random(firstBar, lastBar),
         random(1,beatsPerBar), 
         random(1,ticksPerBeat)}, 0L, noteon, random(0,128), random(0,128), 10});
   }
@@ -199,7 +214,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("SEQ ONLINE!");
 
-  fillSeqEvents();
+  fillSeqEvents(20, 0, 10);
 
   // dump out sequence events
   for (int i=0; i<seqEvents->size(); i++) {
@@ -223,6 +238,12 @@ void setup() {
   printInstrumentDefinition(&snare);
 
 
+  Serial.print("Intervals: \n\tBar: ");
+  Serial.print(barInterval);
+  Serial.print("ms\n\tBeat:");
+  Serial.print(beatInterval);
+  Serial.print("ms\n\tTick:");
+  Serial.println(tickInterval);
 
 
   // Load configuration
@@ -246,12 +267,25 @@ void setup() {
   userScheduler.addTask(task_lcdShowTime);
   userScheduler.addTask(mesh_taskDescribeSelf);
   userScheduler.addTask(task_lcdShowQueue);
+  userScheduler.addTask(seq_taskOnBeat);
+  userScheduler.addTask(seq_taskOnBar);
+  userScheduler.addTask(seq_taskHandleEvents);
   
   // mesh_taskSendMessage.enable();
   // mesh_taskDescribeSelf.enable();
   task_lcdShowTime.enable();
   task_lcdShowQueue.enable();
   
+  seq_taskOnBeat.enable();
+  seq_taskOnBar.enable();
+
+  // find time of first event
+  // changeHandleEvent interval to be time til first event
+  // enable it
+  seq_taskHandleEvents.enable();
+
+  // find
+
 
 }
 
