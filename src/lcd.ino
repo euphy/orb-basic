@@ -92,14 +92,6 @@ void lcd_showTime() {
 
   // Show musical time
   rowPosition += textSize * 10+8;
-  int totalBeats = microseconds/1000/beatInterval;
-  int totalBars = totalBeats/beatsPerBar;
-  int totalTicks = microseconds/1000/tickInterval;
-
-  int currentBar = totalBars;
-  int currentBeat = totalBeats - (currentBar*beatsPerBar)+1;
-  int currentTick = totalTicks - (totalBeats*ticksPerBeat)+1;
-  
 
   rowPosition = 80;
   lcd.setTextColor(TFT_WHITE);
@@ -113,17 +105,17 @@ void lcd_showTime() {
 
   lcd.setTextSize(3);
   lcd.setTextColor(TFT_BLACK);
-  lcd.drawNumber(bar, 115, rowPosition);
-  lcd.drawNumber(beat, 210, rowPosition);
-  lcd.drawNumber(tick, 310, rowPosition);
+  lcd.drawNumber(lastDrawnBar, 115, rowPosition);
+  lcd.drawNumber(lastDrawnBeat, 210, rowPosition);
+  lcd.drawNumber(lastDrawnTick, 310, rowPosition);
 
   lcd.setTextColor(TFT_WHITE);
-  lcd.drawNumber(currentBar, 115, rowPosition);
-  lcd.drawNumber(currentBeat, 210, rowPosition);
-  lcd.drawNumber(currentTick, 310, rowPosition);
-  bar = currentBar;
-  beat = currentBeat;
-  tick = currentTick;
+  lcd.drawNumber(bar+1, 115, rowPosition);
+  lcd.drawNumber(beat, 210, rowPosition);
+  lcd.drawNumber(tick, 310, rowPosition);
+  lastDrawnBar = bar+1;
+  lastDrawnBeat = beat;
+  lastDrawnTick = tick;
 
   drawLabels = false;
 }

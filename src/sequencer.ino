@@ -6,6 +6,14 @@
 //
 //
 //************************************************************
+// Special options! These need to be BEFORE TaskScheduler.h being loaded.
+// That happens in PainlessMesh!
+// #define _TASK_SLEEP_ON_IDLE_RUN
+// #define _TASK_PRIORITY
+// #define _TASK_WDT_IDS
+// #define _TASK_TIMECRITICAL
+// #include <TaskScheduler.h>
+
 #include "painlessMesh.h"
 #include <FS.h>
 #include "SD.h"
@@ -14,16 +22,17 @@
 #include <TFT_eSPI.h> // Hardware-specific library
 #include <ArduinoJson.h>
 #include <LinkedList.h>
-#include "defs.h"
 
+#include "defs.h"
 #include "firmware-build-name.h"
 
 #define   MESH_PREFIX     "whateverYouLike"
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
+
 // Things used by everyone
-Scheduler userScheduler;
+Scheduler userScheduler, priorityScheduler;
 painlessMesh  mesh;
 Preferences preferences;
 
@@ -79,11 +88,18 @@ Task seq_taskOnBar(TASK_MILLISECOND*barInterval, TASK_FOREVER, &seq_onBar);
 unsigned long sequencerTime = 0L;
 signed long offsetFromSystemTime = 0L;
 long offsetFromMeshTime = 0L;
+
+// Drawing to the screen (used for noting difference)
 unsigned long lastDrawnSequencerTime = 0L;
+unsigned int lastDrawnBar = 0;
+unsigned int lastDrawnBeat = 0;
+unsigned int lastDrawnTick = 0;
 unsigned int bar = 0;
 unsigned int beat = 0;
 unsigned int tick = 0;
 boolean drawLabels = true;
+long lastBeatTime = 0L;
+
 /*
 ticksPerBar is how many discrete addresses are available in that bar.
 tickInterval is how much time is in between each tick.
@@ -113,7 +129,11 @@ void seq_handleEvent();
 Task seq_taskHandleEvents(TASK_MILLISECOND*beatInterval, TASK_FOREVER, &seq_handleEvent);
 
 
-int loopAfterBar = 16;
+// How the sequencer self-resets
+int loopAfterBar = 4;
+unsigned long maxSequenceTime = loopAfterBar*barInterval;
+void seq_handleLoop();
+Task seq_taskHandleLoop(TASK_MILLISECOND*maxSequenceTime, TASK_FOREVER, &seq_handleLoop);
 
 
 long musicPositionInMillis(OrbMusicPosition *position) {
@@ -181,8 +201,6 @@ int compareSequencerEventTime(OrbSequenceEvent &a, OrbSequenceEvent &b) {
   if (aTime > bTime) val = 1;
   else if (aTime < bTime) val = -1;
 
-  Serial.print("compare ");
-  Serial.println(val);
   return val;
 }
 
@@ -263,26 +281,36 @@ void setup() {
   mesh.onNodeTimeAdjusted(&mesh_nodeTimeAdjustedCallback);
   mesh.initOTAReceive(role);
 
-  userScheduler.addTask(mesh_taskSendMessage);
+  // userScheduler.addTask(mesh_taskSendMessage);
+  // userScheduler.addTask(mesh_taskDescribeSelf);
   userScheduler.addTask(task_lcdShowTime);
-  userScheduler.addTask(mesh_taskDescribeSelf);
   userScheduler.addTask(task_lcdShowQueue);
-  userScheduler.addTask(seq_taskOnBeat);
-  userScheduler.addTask(seq_taskOnBar);
   userScheduler.addTask(seq_taskHandleEvents);
-  
+  userScheduler.addTask(seq_taskHandleLoop);
+  userScheduler.addTask(seq_taskOnBar);
+  userScheduler.addTask(seq_taskOnBeat);
+
+  // higher priority
+  // priorityScheduler.addTask(seq_taskOnBeat);
+  // userScheduler.setHighPriorityScheduler(priorityScheduler);
+
+
   // mesh_taskSendMessage.enable();
   // mesh_taskDescribeSelf.enable();
-  task_lcdShowTime.enable();
-  task_lcdShowQueue.enable();
+  userScheduler.enableAll();
+  // task_lcdShowTime.enable();
+  // task_lcdShowQueue.enable();
   
-  seq_taskOnBeat.enable();
-  seq_taskOnBar.enable();
+  // seq_taskOnBeat.enable();
+  // seq_taskOnBar.enable();
 
   // find time of first event
   // changeHandleEvent interval to be time til first event
   // enable it
-  seq_taskHandleEvents.enable();
+  // seq_taskHandleEvents.enable();
+
+  // start looper
+  // seq_taskHandleLoop.enable();
 
   // find
 
